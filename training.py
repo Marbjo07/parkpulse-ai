@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torchvision import datasets, transforms
+from torchvision import transforms
 from torch.optim.lr_scheduler import StepLR
 import os
 from PIL import Image
