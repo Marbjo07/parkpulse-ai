@@ -11,7 +11,7 @@ from torchvision.utils import save_image
 
 def log(*args, level=1):
     if configs.verbose >= level: 
-        print(args)
+        print(*args)
 
 def get_parrent_dir(file_path):
     parrent_dir = file_path
@@ -101,7 +101,6 @@ def make_parking_lot_heatmap(input_file, output_file, image_size, kernel_size, s
 
     log("Heatmap is now applied.")
 
-
 def apply_heatmap_to_img(input_file, output_file, heatmap_file):
     log("-"*50)
     log(f"{inspect.currentframe().f_code.co_name}() recived:")
@@ -141,7 +140,6 @@ def apply_heatmap_to_img(input_file, output_file, heatmap_file):
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-f", "--input_file", required=True, help="Input file or folder to apply model on. If a folder every image will be processed")
-parser.add_argument("-s", "--stride", required=False, default=64, help="Stride of model kernel. A higher value increases accuracy but also increases compute time and noise (compute complexity is squared).", type=int)
 parser.add_argument("-c", "--confidence", required=False, default=0.9, help="Threshold for clipping the heatmap. Higher values reduce noise but may sacrifice accuracy.", type=float)
 parser.add_argument("-v", "--verbose", required=False, default=1, help="Verbosity", type=int)
 configs = parser.parse_args()
@@ -153,12 +151,7 @@ input_file = configs.input_file
 
 image_size = 2560
 kernel_size = 128
-
-custom_stride = configs.stride != kernel_size // 2
-
-if configs.stride >= kernel_size:
-    print(f"WARNING: Setting stride to greater than or equal to {kernel_size} leads to bad model performance, as it will miss parts of the image. Recommended stride: {kernel_size // 2}:")
-
+stride = kernel_size // 2
 
 model_save_file = "./model/pretrained_model.pth"
 
@@ -169,7 +162,7 @@ if torch.cuda.is_available():
 else:
     device = torch.device("cpu")
 
-model = nn.Sequential(torch.load("./model/part1.pth"), torch.load("./model/part2.pth"))
+model = nn.Sequential(torch.load("./model/part1.pth", map_location=device), torch.load("./model/part2.pth", map_location=device))
 model.eval()
 
 model = model.to(device)
@@ -197,20 +190,16 @@ if os.path.isdir(input_file):
     for file in files:
         file_name = ".".join(file.split('.')[:-1])
 
-        if custom_stride:
-            file_name += f'_stride_{configs.stride}'
 
         input_files += [f'{input_file}{file}']
         output_files += [f'{output_dir}output/{file_name}.png']
         heatmap_files += [f'{output_dir}heatmaps/{file_name}.png']
 
 else:
-    
     print(output_dir)
-    custom_stride_info = f'_stride_{configs.stride}' if custom_stride else ''
 
-    output_files = [f'{output_dir}/output{custom_stride_info}.png']
-    heatmap_files = [f'{output_dir}/heatmap{custom_stride_info}.png']
+    output_files = [f'{output_dir}/output.png']
+    heatmap_files = [f'{output_dir}/heatmap.png']
 
 assert len(input_files) == len(output_files)
 assert len(output_files) == len(heatmap_files)
@@ -222,7 +211,7 @@ for input_file, output_file, heatmap_file in zip(input_files, output_files, heat
                          heatmap_file, 
                          image_size, 
                          kernel_size, 
-                         configs.stride,
+                         stride,
                          confidence_threshold,
                          model_save_file)
 
